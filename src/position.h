@@ -4,14 +4,20 @@
 #include <stdint.h>
 
 typedef enum {
-  None,
   Pawn,
   Knight,
   Bishop,
   Rook,
   Queen,
   King,
+  None,
 } Piece;
+
+typedef enum {
+  White,
+  Black,
+  NoColour,
+} Colour;
 
 typedef struct {
   uint64_t from;
@@ -27,6 +33,11 @@ typedef struct {
   size_t count;
   Move moves[300];
 } MoveArr;
+
+typedef struct {
+  uint64_t hashes[500];
+  size_t count;
+} HashHistory;
 
 typedef struct {
   int pieceKeys[2][6][64];
@@ -50,21 +61,19 @@ typedef struct {
   uint64_t bqueens;
   uint64_t brooks;
   uint64_t bking;
-
+  // 1 == whiteKS 2 == whiteQS 4 == blackKS 8 == blackQS
   uint8_t castlingRights;
   uint64_t enPassantTile;
-
-  uint64_t checkingPiece;
-  bool multiCheck;
-
   bool whitesMove;
-
   int halfMoveClock;
   int fullMoveClock;
 
 } Position;
 
+// hashing
+Zobrist init_zobrist();
+uint64_t compute_zobrist(Position *position);
+Position start_position();
+void make_move(Move *move, Position *position);
 uint64_t white_piece_mask(Position *position);
 uint64_t black_piece_mask(Position *position);
-uint64_t *find_piece_mask(uint64_t mask, Position *position);
-Piece find_piece_type(uint64_t mask, Position *position);
