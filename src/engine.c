@@ -85,7 +85,7 @@ Move *perft_get_move(MoveArr *mArr, Position *position, HashHistory *hashHistory
       tArgs->index = i;
       tArgs->depth = depth;
 
-      pthread_create(&threads[i], &attr, thread_search, (void *)tArgs);
+      pthread_create(&threads[i], &attr, thread_search_perft, (void *)tArgs);
     }
 
     for (int i = 0; i < mArr->count; i++) {
