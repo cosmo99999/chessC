@@ -209,18 +209,18 @@ int main(int argc, char *argv[]) {
   hashHistory->count = 0;
   position = malloc(sizeof(Position));
 
-  // printf("uci or gui\n");
-  // char buffer[256];
-  // read_input(buffer, sizeof(buffer));
+  printf("uci or gui\n");
+  char buffer[256];
+  read_input(buffer, sizeof(buffer));
   depth = read_depth_from_config();
   mArr = malloc(sizeof(MoveArr));
   *position = start_position();
   *mArr = get_moves(position);
   GUI();
-  // if (equals(buffer, "uci")) {
-  //   UCI();
-  // } else {
-  // }
+  if (equals(buffer, "uci")) {
+    UCI();
+  } else {
+  }
 
   return 0;
 }
