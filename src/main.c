@@ -216,10 +216,10 @@ int main(int argc, char *argv[]) {
   mArr = malloc(sizeof(MoveArr));
   *position = start_position();
   *mArr = get_moves(position);
-  GUI();
   if (equals(buffer, "uci")) {
     UCI();
   } else {
+    GUI();
   }
 
   return 0;
