@@ -3,52 +3,114 @@
 #include "move.h"
 #include "pestoTables.h"
 #include "position.h"
+#include "pthread.h"
 #include "uci.h"
+#include <bits/pthreadtypes.h>
 #include <stdio.h>
 
-int mg_value[6] = {82, 337, 365, 477, 1025, 0};
-int eg_value[6] = {94, 281, 297, 512, 936, 0};
+pthread_mutex_t thread_results_lock;
 
-Move *get_best_move(MoveArr *mArr, Position *position, HashHistory *hashHistory, int depth) {
+void print_perft(PerftParams *perft) {
+  printf("nodes searched: %llu \n", (unsigned long long)perft->count);
+  printf("captures %d \n", perft->captures);
+  printf("checks %d \n", perft->checks);
+  printf("enPassant %d \n", perft->enPassant);
+  printf("checkmates %d \n", perft->checkMates);
+  printf("promotions %d \n", perft->promotions);
+  printf("doublechecks %d \n", perft->doublechecks);
+}
+void copy_back_counts(PerftParams *from, PerftParams *to) {
+  to->count += from->count;
+  to->checks += from->checks;
+  to->captures += from->captures;
+  to->enPassant += from->enPassant;
+  to->doublechecks += from->doublechecks;
+  to->promotions += from->promotions;
+  to->checkMates += from->checkMates;
+}
+
+void *thread_search_perft(void *args) {
+  ThreadArgs *tArgs = (ThreadArgs *)args;
+  PerftParams params = get_empty_params(&tArgs->hashHistory, tArgs->position);
+  make_move(&tArgs->move, tArgs->position);
+  int score = min_max_search_perft(tArgs->depth - 1, tArgs->position, tArgs->isMax, -10000, 10000, &tArgs->hashHistory,
+                                   &params);
+  pthread_mutex_lock(&thread_results_lock);
+  copy_back_counts(&params, tArgs->paramResults);
+  tArgs->bestMoves[tArgs->index] = score;
+  pthread_mutex_unlock(&thread_results_lock);
+  print_move_uci(tArgs->move.from, tArgs->move.to, tArgs->move.promotionPiece);
+  printf(": %llu \n", (unsigned long long)params.count);
+  return NULL;
+}
+void *thread_search(void *args) {
+  ThreadArgs *tArgs = (ThreadArgs *)args;
+  make_move(&tArgs->move, tArgs->position);
+  int score = min_max(tArgs->depth - 1, tArgs->position, tArgs->isMax, -10000, 10000, &tArgs->hashHistory);
+  pthread_mutex_lock(&thread_results_lock);
+  tArgs->bestMoves[tArgs->index] = score;
+  pthread_mutex_unlock(&thread_results_lock);
+  free(tArgs->position);
+  free(tArgs);
+  return NULL;
+}
+
+Move *perft_get_move(MoveArr *mArr, Position *position, HashHistory *hashHistory, int depth, bool multithread) {
   if (mArr->count == 0) {
     return NULL;
   }
   Move *bestMove = &mArr->moves[0];
-  int bestOutcomes[(int)mArr->count];
-  int totalMoves = 0;
-  int captures = 0;
-  int enPassant = 0;
-  int checks = 0;
-  int checkmates = 0;
-  int promotions = 0;
-  int multichecks = 0;
-  for (int i = 0; i < mArr->count; i++) {
-    Position newPos = *position;
-    Move *m = &mArr->moves[i];
-    make_move(m, &newPos);
-    HashHistory history = *hashHistory;
-    SearchParams params = get_empty_params(&history, &newPos, depth);
-    int score = min_max_search(&params);
-    totalMoves += params.count;
-    captures += params.captures;
-    checks += params.checks;
-    enPassant += params.enPassant;
-    checkmates += params.checkMates;
-    promotions += params.promotions;
-    multichecks += params.doublechecks;
-    bestOutcomes[i] = score;
-    print_move_uci(m->from, m->to, m->promotionPiece);
-    printf(": %d \n", params.count);
-  }
-  printf("nodes searched: %d \n", totalMoves);
 
-  // printf("searched %d \n", totalMoves);
-  // printf("captures %d \n", captures);
-  // printf("checks %d \n", checks);
-  // printf("enPassant %d \n", enPassant);
-  // printf("checkmates %d \n", checkmates);
-  // printf("promotions %d \n", promotions);
-  // printf("doublechecks %d \n", multichecks);
+  int bestOutcomes[(int)mArr->count];
+
+  PerftParams totals = {0};
+
+  if (multithread) {
+    pthread_t threads[mArr->count];
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    size_t stack_size = 8 * 1024 * 1024;
+    pthread_attr_setstacksize(&attr, stack_size);
+
+    for (int i = 0; i < mArr->count; i++) {
+      ThreadArgs *tArgs = malloc(sizeof(ThreadArgs));
+      Position *newPos = malloc(sizeof(Position));
+      *newPos = *position;
+      tArgs->position = newPos;
+      tArgs->hashHistory = *hashHistory;
+      tArgs->move = mArr->moves[i];
+      tArgs->isMax = position->whitesMove;
+      tArgs->paramResults = &totals;
+      tArgs->bestMoves = bestOutcomes;
+      tArgs->index = i;
+      tArgs->depth = depth;
+
+      pthread_create(&threads[i], &attr, thread_search, (void *)tArgs);
+    }
+
+    for (int i = 0; i < mArr->count; i++) {
+      pthread_join(threads[i], NULL);
+    }
+  } else {
+    for (int i = 0; i < mArr->count; i++) {
+      Position *newPos = malloc(sizeof(Position));
+      *newPos = *position;
+      make_move(&mArr->moves[i], newPos);
+      BoardInfo bInfo;
+      bInfo.position = newPos;
+      PerftParams params = {0};
+      int score = min_max_search_perft(depth - 1, position, position->whitesMove, 10000, -10000, hashHistory, &params);
+      pthread_mutex_lock(&thread_results_lock);
+      copy_back_counts(&params, &totals);
+      bestOutcomes[i] = score;
+      pthread_mutex_unlock(&thread_results_lock);
+      print_move_uci(mArr->moves[i].from, mArr->moves[i].to, mArr->moves[i].promotionPiece);
+      printf(": %llu \n", (unsigned long long)params.count);
+    }
+  }
+
+  print_perft(&totals);
+
   int best = position->whitesMove ? -10000 : 10000;
   int bestMovePosition = -1;
 
@@ -74,59 +136,104 @@ Move *get_best_move(MoveArr *mArr, Position *position, HashHistory *hashHistory,
   }
   return bestMove;
 }
-SearchParams copy_params(SearchParams *p) {
-  SearchParams nParams = *p;
-  nParams.count = 0;
-  nParams.captures = 0;
-  nParams.checks = 0;
-  nParams.enPassant = 0;
-  nParams.doublechecks = 0;
-  nParams.checkMates = 0;
-  nParams.promotions = 0;
-  if (p->isMax) {
-    nParams.isMax = false;
-  } else {
-    nParams.isMax = true;
+Move *get_move(MoveArr *mArr, Position *position, HashHistory *hashHistory, int depth, bool multithread) {
+  if (mArr->count == 0) {
+    return NULL;
   }
-  nParams.depth -= 1;
-  return nParams;
-}
-void count_values(SearchParams *nParams, Move *m, AttackerInfo aInfo, int oldEnPassantTile) {
-  if (nParams->depth == 0) {
-    if (m->pto != None) {
-      nParams->captures++;
-    }
-    if (m->to == oldEnPassantTile && m->pfrom == Pawn)
-      nParams->enPassant++;
-    if (m->to == aInfo.checkingPiecePos) {
-      nParams->checks++;
-    }
-    if (aInfo.multicheck) {
-      nParams->doublechecks++;
-    }
-    if (m->promotion) {
-      nParams->promotions++;
-    }
-  }
-}
-void copy_back_counts(SearchParams *from, SearchParams *to) {
-  to->count += from->count;
-  to->checks += from->checks;
-  to->captures += from->captures;
-  to->enPassant += from->enPassant;
-  to->doublechecks += from->doublechecks;
-  to->promotions += from->promotions;
-  to->checkMates += from->checkMates;
-}
-int min_max_search(SearchParams *params) {
+  Move *bestMove = &mArr->moves[0];
 
-  if (params->depth == 0) {
-    MoveArr mArr = get_moves(&params->position);
-    AttackerInfo aInfo = get_attacker_info(&params->position);
+  int bestOutcomes[(int)mArr->count];
+
+  if (multithread) {
+    pthread_t threads[mArr->count];
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    size_t stack_size = 8 * 1024 * 1024;
+    pthread_attr_setstacksize(&attr, stack_size);
+
+    for (int i = 0; i < mArr->count; i++) {
+      ThreadArgs *tArgs = malloc(sizeof(ThreadArgs));
+      Position *newPos = malloc(sizeof(Position));
+      *newPos = *position;
+      tArgs->position = newPos;
+      tArgs->hashHistory = *hashHistory;
+      tArgs->move = mArr->moves[i];
+      tArgs->isMax = !position->whitesMove;
+      tArgs->bestMoves = bestOutcomes;
+      tArgs->index = i;
+      tArgs->depth = depth;
+      pthread_create(&threads[i], &attr, thread_search, (void *)tArgs);
+    }
+
+    for (int i = 0; i < mArr->count; i++) {
+      pthread_join(threads[i], NULL);
+      printf("%d : %d\n", i, bestOutcomes[i]);
+    }
+  } else {
+    for (int i = 0; i < mArr->count; i++) {
+      Position *newPos = malloc(sizeof(Position));
+      *newPos = *position;
+      make_move(&mArr->moves[i], newPos);
+      BoardInfo bInfo;
+      bInfo.position = newPos;
+      int score = min_max(depth - 1, position, !position->whitesMove, -10000, 10000, hashHistory);
+      bestOutcomes[i] = score;
+    }
+  }
+
+  int best = position->whitesMove ? -10000 : 10000;
+  int bestMovePosition = -1;
+
+  // for (int i = 0; i < mArr->count; i++) {
+  //   printf("%d: %d \n", i, bestOutcomes[i]);
+  // }
+  for (int i = 0; i < mArr->count; i++) {
+
+    if (position->whitesMove) {
+      if (bestOutcomes[i] > best) {
+        best = bestOutcomes[i];
+        bestMovePosition = i;
+      }
+    } else {
+      if (bestOutcomes[i] < best) {
+        best = bestOutcomes[i];
+        bestMovePosition = i;
+      }
+    }
+  }
+  if (bestMovePosition != -1) {
+    bestMove = &mArr->moves[bestMovePosition];
+    print_move(bestMove);
+    printf("at index : %d\n", bestMovePosition);
+  }
+  return bestMove;
+}
+
+void count_values(PerftParams *nParams, Move *m, AttackerInfo aInfo, int oldEnPassantTile) {
+  if (m->pto != None) {
+    nParams->captures++;
+  }
+  if (m->to == oldEnPassantTile && m->pfrom == Pawn)
+    nParams->enPassant++;
+  if (aInfo.check) {
+    nParams->checks++;
+  }
+  if (aInfo.multicheck) {
+    nParams->doublechecks++;
+  }
+  if (m->promotion) {
+    nParams->promotions++;
+  }
+}
+int min_max_search_perft(int depth, Position *position, bool isMax, int alpha, int beta, HashHistory *hashHistory,
+                         PerftParams *params) {
+  if (depth == 0) {
+    MoveArr mArr = get_moves(position);
+    AttackerInfo aInfo = get_attacker_info(position);
     if (mArr.count == 0) {
       if (aInfo.check) {
         params->checkMates++;
-        if (params->isMax) {
+        if (isMax) {
           return 1000000;
         } else {
           return -1000000;
@@ -135,62 +242,149 @@ int min_max_search(SearchParams *params) {
         return 0;
       }
     }
-    if (has_repetition(params->position.zhash, &params->hashHistory, params->position.halfMoveClock, 2, false)) {
+    if (has_repetition(position->zhash, hashHistory, position->halfMoveClock, 2, false)) {
       return 0;
     }
-    int e = evaluate(&params->position);
+    int e = evaluate(position);
     return e;
   }
-  MoveArr mArr = get_moves(&params->position);
-  if (params->depth == 1) {
+
+  MoveArr mArr = get_moves(position);
+  if (depth == 1) {
     params->count += mArr.count;
   }
 
-  if (params->isMax) {
+  if (isMax) {
     float best = -100000;
     for (int i = 0; i < mArr.count; i++) {
-      SearchParams nParams = copy_params(params);
 
       Move *m = &mArr.moves[i];
-      uint64_t oldEnPassantTile = nParams.position.enPassantTile;
-      make_move(m, &nParams.position);
-      AttackerInfo aInfo = get_attacker_info(&nParams.position);
+      uint64_t oldEnPassantTile = position->enPassantTile;
+      UndoMove undo = make_move(m, position);
+      AttackerInfo aInfo = get_attacker_info(position);
 
-      params->hashHistory.hashes[params->hashHistory.count++] = nParams.position.zhash;
-      int temp = min_max_search(&nParams);
-      params->hashHistory.count--;
+      // printf("Made move: \n");
+      // print_move(m);
+      // print_board(info->position);
+      // printf("\n");
+      hashHistory->hashes[hashHistory->count++] = position->zhash;
+      int temp = min_max_search_perft(depth - 1, position, false, alpha, beta, hashHistory, params);
+      hashHistory->count--;
 
-      count_values(&nParams, m, aInfo, oldEnPassantTile);
-      copy_back_counts(&nParams, params);
+      if (depth == 1)
+        count_values(params, m, aInfo, oldEnPassantTile);
 
+      unmake_move(m, position, &undo);
+      // printf("undoing move: \n");
+      // print_move(m);
+      // print_board(info->position);
+      // printf("\n");
       best = max(best, temp);
-      params->alpha = max(best, params->alpha);
-      // if (params->alpha >= params->beta)
+      alpha = max(best, alpha);
+      // if (alpha >= beta)
       //   break;
     }
     return best;
   }
-  if (!params->isMax) {
+  if (!isMax) {
     float best = 100000;
     for (int i = 0; i < mArr.count; i++) {
-      SearchParams nParams = copy_params(params);
-
-      uint64_t oldEnPassantTile = nParams.position.enPassantTile;
       Move *m = &mArr.moves[i];
-      make_move(m, &nParams.position);
-      AttackerInfo aInfo = get_attacker_info(&nParams.position);
+      uint64_t oldEnPassantTile = position->enPassantTile;
+      UndoMove undo = make_move(m, position);
+      AttackerInfo aInfo = get_attacker_info(position);
 
-      params->hashHistory.hashes[params->hashHistory.count++] = nParams.position.zhash;
-      int temp = min_max_search(&nParams);
-      params->hashHistory.count--;
+      // printf("Made move: \n");
+      // print_move(m);
+      // print_board(info->position);
+      // printf("\n");
+      hashHistory->hashes[hashHistory->count++] = position->zhash;
+      int temp = min_max_search_perft(depth - 1, position, true, alpha, beta, hashHistory, params);
+      hashHistory->count--;
 
-      count_values(&nParams, m, aInfo, oldEnPassantTile);
-      copy_back_counts(&nParams, params);
+      if (depth == 1)
+        count_values(params, m, aInfo, oldEnPassantTile);
+
+      unmake_move(m, position, &undo);
+      // printf("undoing move: \n");
+      // print_move(m);
+      // print_board(info->position);
+      // printf("\n");
 
       best = min(best, temp);
-      params->beta = min(best, params->beta);
-      // if (params->alpha >= params->beta)
+      beta = min(best, beta);
+      // if (alpha >= beta)
       //   break;
+    }
+    return best;
+  }
+  return -1;
+}
+int min_max(int depth, Position *position, bool isMax, int alpha, int beta, HashHistory *hashHistory) {
+  MoveArr mArr = get_moves(position);
+
+  if (mArr.count == 0) {
+    MoveArr mArr = get_moves(position);
+    AttackerInfo aInfo = get_attacker_info(position);
+    if (mArr.count == 0) {
+      if (aInfo.check) {
+        if (isMax) {
+          return -1000000 - depth;
+        } else {
+          return 1000000 + depth;
+        }
+      } else {
+        return 0;
+      }
+    }
+    if (has_repetition(position->zhash, hashHistory, position->halfMoveClock, 2, false)) {
+      return 0;
+    }
+  }
+  if (depth == 0) {
+    int e = evaluate(position);
+    return e;
+  }
+
+  if (isMax) {
+    int best = -100000;
+    for (int i = 0; i < mArr.count; i++) {
+
+      Move *m = &mArr.moves[i];
+      UndoMove undo = make_move(m, position);
+      AttackerInfo aInfo = get_attacker_info(position);
+
+      hashHistory->hashes[hashHistory->count++] = position->zhash;
+      int temp = min_max(depth - 1, position, false, alpha, beta, hashHistory);
+      hashHistory->count--;
+
+      unmake_move(m, position, &undo);
+      best = max(best, temp);
+      alpha = max(best, alpha);
+      if (alpha >= beta) {
+        break;
+      }
+    }
+    return best;
+  }
+  if (!isMax) {
+    int best = 100000;
+    for (int i = 0; i < mArr.count; i++) {
+      Move *m = &mArr.moves[i];
+      UndoMove undo = make_move(m, position);
+      AttackerInfo aInfo = get_attacker_info(position);
+
+      hashHistory->hashes[hashHistory->count++] = position->zhash;
+      int temp = min_max(depth - 1, position, true, alpha, beta, hashHistory);
+      hashHistory->count--;
+
+      unmake_move(m, position, &undo);
+
+      best = min(best, temp);
+      beta = min(best, beta);
+      if (alpha >= beta) {
+        break;
+      }
     }
     return best;
   }
@@ -258,8 +452,6 @@ int evaluate(Position *position) {
 
   while (wpawns) {
     int p = pop_lsb_get_int(&wpawns) ^ 56;
-    int egval = eg_pesto_table[0][0][p] + eg_value[0];
-    int mgVal = mg_pesto_table[0][0][p] + mg_value[0];
     egScore += eg_pesto_table[0][0][p] + eg_value[0];
     mgScore += mg_pesto_table[0][0][p] + mg_value[0];
   }
@@ -333,15 +525,9 @@ int evaluate(Position *position) {
   int result = (mgScore * mgPhase + egScore * egPhase) / 24;
   return result;
 }
-SearchParams get_empty_params(HashHistory *history, Position *newPos, int depth) {
+PerftParams get_empty_params(HashHistory *history, Position *newPos) {
 
-  SearchParams params;
-  params.hashHistory = *history;
-  params.isMax = newPos->whitesMove ? true : false;
-  params.alpha = -10000;
-  params.beta = 10000;
-  params.position = *newPos;
-  params.depth = depth - 1;
+  PerftParams params;
   params.count = 0;
   params.captures = 0;
   params.checks = 0;

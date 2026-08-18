@@ -166,3 +166,6 @@ static const int *eg_pesto_table[2][6] = {
     {eg_pawn_table_w, eg_knight_table_w, eg_bishop_table_w, eg_rook_table_w, eg_queen_table_w, eg_king_table_w},
     {eg_pawn_table_b, eg_knight_table_b, eg_bishop_table_b, eg_rook_table_b, eg_queen_table_b, eg_king_table_b},
 };
+
+static const int mg_value[6] = {82, 337, 365, 477, 1025, 0};
+static const int eg_value[6] = {94, 281, 297, 512, 936, 0};

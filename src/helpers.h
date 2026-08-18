@@ -241,6 +241,9 @@ static inline uint64_t *find_piece_mask(uint64_t mask, Position *position) {
 }
 static inline uint64_t *find_piece_mask_by_type_and_colour(Piece piece, Colour colour, Position *position) {
   if (colour == White) {
+    if (piece == Pawn) {
+      return &position->wpawns;
+    }
     if (piece == Bishop) {
       return &position->wbishops;
     }
@@ -253,7 +256,13 @@ static inline uint64_t *find_piece_mask_by_type_and_colour(Piece piece, Colour c
     if (piece == Knight) {
       return &position->wknights;
     }
+    if (piece == King) {
+      return &position->wking;
+    }
   } else {
+    if (piece == Pawn) {
+      return &position->bpawns;
+    }
     if (piece == Bishop) {
       return &position->bbishops;
     }
@@ -265,6 +274,9 @@ static inline uint64_t *find_piece_mask_by_type_and_colour(Piece piece, Colour c
     }
     if (piece == Knight) {
       return &position->bknights;
+    }
+    if (piece == King) {
+      return &position->bking;
     }
   }
   return NULL;
@@ -295,28 +307,28 @@ static inline Colour find_piece_colour(uint64_t mask, Position *position) {
 }
 static inline int get_en_passant_file(Position *position) {
   if (position->enPassantTile & A_FILE) {
-    return 1;
+    return 0;
   }
   if (position->enPassantTile & B_FILE) {
-    return 2;
+    return 1;
   }
   if (position->enPassantTile & C_FILE) {
-    return 3;
+    return 2;
   }
   if (position->enPassantTile & D_FILE) {
-    return 4;
+    return 3;
   }
   if (position->enPassantTile & E_FILE) {
-    return 5;
+    return 4;
   }
   if (position->enPassantTile & F_FILE) {
-    return 6;
+    return 5;
   }
   if (position->enPassantTile & G_FILE) {
-    return 7;
+    return 6;
   }
   if (position->enPassantTile & H_FILE) {
-    return 8;
+    return 7;
   }
   return 0;
 }

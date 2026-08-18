@@ -106,7 +106,13 @@ uint64_t black_piece_mask(Position *position) {
   return position->bpawns | position->bbishops | position->brooks | position->bknights | position->bqueens |
          position->bking;
 }
-void make_move(Move *move, Position *position) {
+UndoMove make_move(Move *move, Position *position) {
+  UndoMove undo;
+  undo.prevHash = position->zhash;
+  undo.castlingRights = position->castlingRights;
+  undo.enPassantTile = position->enPassantTile;
+  undo.fullmoves = position->fullMoveClock;
+  undo.halfmoves = position->halfMoveClock;
   if (move->castling) {
     Colour colour = position->whitesMove ? White : Black;
     uint64_t *rooks = position->whitesMove ? &position->wrooks : &position->brooks;
@@ -135,7 +141,7 @@ void make_move(Move *move, Position *position) {
     position->zhash ^= zobrist->pieceKeys[colour][Rook][fromInt];
     position->zhash ^= zobrist->pieceKeys[colour][Rook][toInt];
   }
-  if (move->to == position->enPassantTile) {
+  if (move->to == position->enPassantTile && move->pfrom == Pawn) {
     Colour colour;
     uint64_t pawnPos = 0;
     uint64_t *enemyPawns;
@@ -191,48 +197,38 @@ void make_move(Move *move, Position *position) {
   }
   // castle rights check
   position->zhash ^= zobrist->castlingKeys[position->castlingRights];
-  if (move->pfrom == King || move->pfrom == Rook) {
+  if (move->pfrom == King || move->pfrom == Rook || move->pto == Rook) {
     uint64_t wks = 1ULL;
     uint64_t wqs = 2ULL;
     uint64_t bks = 4ULL;
     uint64_t bqs = 8ULL;
     if (move->from == 1ULL << 4) {
-      if (move->pfrom == King) {
-        if (position->castlingRights & wks)
-          position->castlingRights ^= wks;
-        if (position->castlingRights & wqs)
-          position->castlingRights ^= wqs;
-      }
-    }
-    if (move->from == 1ULL << 60) {
-      if (move->pfrom == King) {
-        if (position->castlingRights & bks)
-          position->castlingRights ^= bks;
-        if (position->castlingRights & bqs)
-          position->castlingRights ^= bqs;
-      }
-    }
-    if (move->from == 1ULL) {
+      if (position->castlingRights & wks)
+        position->castlingRights ^= wks;
       if (position->castlingRights & wqs)
         position->castlingRights ^= wqs;
     }
-    if (move->from == 1ULL << 7) {
-      if (move->pfrom == Rook) {
-        if (position->castlingRights & wks)
-          position->castlingRights ^= wks;
-      }
+    if (move->from == 1ULL << 60) {
+      if (position->castlingRights & bks)
+        position->castlingRights ^= bks;
+      if (position->castlingRights & bqs)
+        position->castlingRights ^= bqs;
     }
-    if (move->from == 1ULL << 56) {
-      if (move->pfrom == Rook) {
-        if (position->castlingRights & bqs)
-          position->castlingRights ^= bqs;
-      }
+    if (move->from == 1ULL || move->to == 1ULL) {
+      if (position->castlingRights & wqs)
+        position->castlingRights ^= wqs;
     }
-    if (move->from == 1ULL << 63) {
-      if (move->pfrom == Rook) {
-        if (position->castlingRights & bks)
-          position->castlingRights ^= bks;
-      }
+    if (move->from == 1ULL << 7 || move->to == 1ULL << 7) {
+      if (position->castlingRights & wks)
+        position->castlingRights ^= wks;
+    }
+    if (move->from == 1ULL << 56 || move->to == 1ULL << 56) {
+      if (position->castlingRights & bqs)
+        position->castlingRights ^= bqs;
+    }
+    if (move->from == 1ULL << 63 || move->to == 1ULL << 63) {
+      if (position->castlingRights & bks)
+        position->castlingRights ^= bks;
     }
   }
   position->zhash ^= zobrist->castlingKeys[position->castlingRights];
@@ -260,4 +256,70 @@ void make_move(Move *move, Position *position) {
   position->fullMoveClock++;
   position->zhash ^= zobrist->sideToMoveKey;
   position->whitesMove = !position->whitesMove;
+  return undo;
 };
+void unmake_move(Move *move, Position *position, UndoMove *undo) {
+  if (move->castling) {
+    uint64_t *rooks = position->whitesMove ? &position->brooks : &position->wrooks;
+    uint64_t rookFrom = 0;
+    uint64_t rookTo = 0;
+    if (move->to == (1ULL << 6)) {
+      rookFrom = (1ULL << 7);
+      rookTo = (1ULL << 5);
+    }
+    if (move->to == (1ULL << 2)) {
+      rookFrom = (1ULL << 0);
+      rookTo = (1ULL << 3);
+    }
+    if (move->to == (1ULL << 62)) {
+      rookFrom = (1ULL << 63);
+      rookTo = (1ULL << 61);
+    }
+    if (move->to == (1ULL << 58)) {
+      rookFrom = (1ULL << 56);
+      rookTo = (1ULL << 59);
+    }
+    *rooks |= rookFrom;
+    *rooks ^= rookTo;
+  }
+  if (move->to == undo->enPassantTile && move->pfrom == Pawn) {
+    uint64_t pawnPos = 0;
+    uint64_t *enemyPawns;
+    if (position->whitesMove) {
+      pawnPos = move->to << 8;
+      enemyPawns = find_piece_mask_by_type_and_colour(Pawn, White, position);
+    } else {
+      pawnPos = move->to >> 8;
+      enemyPawns = find_piece_mask_by_type_and_colour(Pawn, Black, position);
+    }
+    *enemyPawns |= pawnPos;
+  }
+  if (move->promotion) {
+    Colour movingColour = position->whitesMove ? Black : White;
+    Colour enemyColour = position->whitesMove ? White : Black;
+    uint64_t *promotedPiece = find_piece_mask(move->to, position);
+    uint64_t *pawns = find_piece_mask_by_type_and_colour(Pawn, movingColour, position);
+    uint64_t *capturedPiece = find_piece_mask_by_type_and_colour(move->pto, enemyColour, position);
+
+    if (capturedPiece != NULL) {
+      *capturedPiece |= move->to;
+    }
+    *pawns |= move->from;
+    *promotedPiece ^= move->to;
+  } else {
+    Colour toColour = position->whitesMove ? White : Black;
+    uint64_t *movedPiece = find_piece_mask(move->to, position);
+    uint64_t *capturedPiece = find_piece_mask_by_type_and_colour(move->pto, toColour, position);
+    if (capturedPiece != NULL) {
+      *capturedPiece |= move->to;
+    }
+
+    *movedPiece |= move->from;
+    *movedPiece ^= move->to;
+  }
+  position->castlingRights = undo->castlingRights;
+  position->enPassantTile = undo->enPassantTile;
+  position->halfMoveClock = undo->halfmoves;
+  position->fullMoveClock = undo->fullmoves;
+  position->whitesMove = !position->whitesMove;
+}

@@ -44,8 +44,8 @@ void pawn_moves(MoveArr *mArr, Position *position) {
       uint64_t toPosition = pop_lsb(&attack);
       Piece toPiece = find_piece_type(toPosition, position);
       if (is_promotion(p, toPosition)) {
-        // 2 knight, 3 bishop, 4 rook, 5 queen
-        for (int i = 2; i < 6; i++) {
+        // 1 knight, 2 bishop, 3 rook, 4 queen
+        for (int i = 1; i < 5; i++) {
           Move m = {p, toPosition, Pawn, toPiece, false, true, i};
           mArr->moves[mArr->count] = m;
           mArr->count++;
@@ -64,8 +64,8 @@ void pawn_moves(MoveArr *mArr, Position *position) {
     while (moves) {
       uint64_t toPosition = pop_lsb(&moves);
       if (is_promotion(p, toPosition)) {
-        // 2 knight, 3 bishop, 4 rook, 5 queen
-        for (int i = 2; i < 6; i++) {
+        // 1 knight, 2 bishop, 3 rook, 4 queen
+        for (int i = 1; i < 5; i++) {
           Move m = {p, toPosition, Pawn, None, false, true, i};
           mArr->moves[mArr->count] = m;
           mArr->count++;

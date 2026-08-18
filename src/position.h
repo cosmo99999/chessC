@@ -30,6 +30,14 @@ typedef struct {
 } Move;
 
 typedef struct {
+  int fullmoves;
+  int halfmoves;
+  uint64_t prevHash;
+  uint64_t castlingRights;
+  uint64_t enPassantTile;
+} UndoMove;
+
+typedef struct {
   size_t count;
   Move moves[300];
 } MoveArr;
@@ -74,6 +82,7 @@ typedef struct {
 Zobrist init_zobrist();
 uint64_t compute_zobrist(Position *position);
 Position start_position();
-void make_move(Move *move, Position *position);
+UndoMove make_move(Move *move, Position *position);
+void unmake_move(Move *move, Position *position, UndoMove *undo);
 uint64_t white_piece_mask(Position *position);
 uint64_t black_piece_mask(Position *position);

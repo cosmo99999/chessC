@@ -5,8 +5,10 @@
 
 #ifndef CASTLE_MASKS
 #define CASTLE_MASKS
-#define WHITE_QUEEN_SIDE 6ULL
-#define BLACK_QUEEN_SIDE 432345564227567616ULL
+#define WHITE_QUEEN_SIDE 14ULL
+#define WHITE_QUEEN_SIDE_MOVING 12ULL
+#define BLACK_QUEEN_SIDE 1008806316530991104ULL
+#define BLACK_QUEEN_SIDE_MOVING 864691128455135232ULL
 #define WHITE_KING_SIDE 96ULL
 #define BLACK_KING_SIDE 6917529027641081856ULL
 #endif
@@ -32,7 +34,7 @@ void king_moves(MoveArr *mArr, Position *position, AttackerInfo *aInfo) {
     }
     if (position->castlingRights & (2ULL)) {
       if (!(allOccupancy & WHITE_QUEEN_SIDE)) {
-        if (!(aInfo->fullAttackMask & WHITE_QUEEN_SIDE) && !aInfo->check) {
+        if (!(aInfo->fullAttackMask & WHITE_QUEEN_SIDE_MOVING) && !aInfo->check) {
           Move m = {king, (1ULL << 2), King, None, true, false, None};
           mArr->moves[mArr->count] = m;
           mArr->count++;
@@ -54,7 +56,7 @@ void king_moves(MoveArr *mArr, Position *position, AttackerInfo *aInfo) {
     }
     if (position->castlingRights & (8ULL)) {
       if (!(allOccupancy & BLACK_QUEEN_SIDE)) {
-        if (!(aInfo->fullAttackMask & BLACK_QUEEN_SIDE) && !aInfo->check) {
+        if (!(aInfo->fullAttackMask & BLACK_QUEEN_SIDE_MOVING) && !aInfo->check) {
           Move m = {king, (1ULL << 58), King, None, true, false, None};
           mArr->moves[mArr->count] = m;
           mArr->count++;

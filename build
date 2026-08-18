@@ -1,3 +1,4 @@
 #!/usr/bin/bash
 
-gcc -Wall -o chess src/main.c src/pawn.c src/move.c src/sliders.c src/position.c src/king.c src/knight.c src/gui.c src/engine.c -g -lraylib -lm -lGL -lpthread -ldl -lrt -lX11
+gcc -O3 -Wall -o chess src/main.c src/pawn.c src/move.c src/sliders.c src/position.c src/king.c src/knight.c src/gui.c src/engine.c -lraylib -lm -lGL -lpthread -ldl -lrt -lX11
+# gcc -O0 -g -fsanitize=address,undefined -Wall -o chess src/main.c src/pawn.c src/move.c src/sliders.c src/position.c src/king.c src/knight.c src/gui.c src/engine.c -lraylib -lm -lGL -lpthread -ldl -lrt -lX11

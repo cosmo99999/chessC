@@ -48,7 +48,7 @@ void slider_moves(MoveArr *mArr, Position *position, Piece piece) {
 
   while (pieces) {
     uint64_t p = pop_lsb(&pieces);
-    uint64_t attack = slider_attack_mask(&p, allOccupancy, offsets, length);
+    uint64_t attack = slider_attack_mask(p, allOccupancy, offsets, length);
     while (attack) {
       uint64_t to = pop_lsb(&attack);
       if (to & friendly)
@@ -61,10 +61,10 @@ void slider_moves(MoveArr *mArr, Position *position, Piece piece) {
   }
 }
 
-uint64_t slider_attack_mask(uint64_t *piece, uint64_t allOccupancy, int offsets[], int length) {
+uint64_t slider_attack_mask(uint64_t piece, uint64_t allOccupancy, int offsets[], int length) {
   uint64_t attack = 0;
   for (int i = 0; i < length; i++) {
-    attack |= ray_cast(*piece, offsets[i], allOccupancy);
+    attack |= ray_cast(piece, offsets[i], allOccupancy);
   }
   return attack;
 }

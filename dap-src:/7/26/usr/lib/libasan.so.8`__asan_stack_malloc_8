@@ -1,0 +1,190 @@
+0x7ffff765af10: endbr64 
+0x7ffff765af14: pushq  %rbp
+0x7ffff765af15: movq   %rsp, %rbp
+0x7ffff765af18: pushq  %r12
+0x7ffff765af1a: pushq  %rbx
+0x7ffff765af1b: movq   %rdi, %rbx
+0x7ffff765af1e: subq   $0x10, %rsp
+0x7ffff765af22: leaq   0x1faaaf(%rip), %rdi
+0x7ffff765af29: callq  *0x1fb0f1(%rip)
+0x7ffff765af2f: movq   (%rax), %r12
+0x7ffff765af36: testq  %r12, %r12
+0x7ffff765af39: je     0x7ffff765b160            ; <+592>
+0x7ffff765af3f: movq   0x58(%r12), %r8
+0x7ffff765af44: cmpb   $0x0, 0x60(%r12)
+0x7ffff765af4a: jne    0x7ffff765b120            ; <+528>
+0x7ffff765af50: leal   -0xe(%r8), %eax
+0x7ffff765af54: movl   $0x1, %ecx
+0x7ffff765af59: shlxq  %rax, %rcx, %rcx
+0x7ffff765af5e: testl  %ecx, %ecx
+0x7ffff765af60: jle    0x7ffff765b190            ; <+640>
+0x7ffff765af66: leal   -0xf(%r8), %esi
+0x7ffff765af6a: movl   $0x3fc, %edi              ; imm = 0x3FC 
+0x7ffff765af6f: decl   %ecx
+0x7ffff765af71: shlxq  %rsi, %rdi, %r9
+0x7ffff765af76: movq   $-0x1, %rsi
+0x7ffff765af7d: shlxq  %rax, %rsi, %rsi
+0x7ffff765af82: movq   0x40(%r12), %rax
+0x7ffff765af87: leaq   0x1(%rax), %rdi
+0x7ffff765af8b: leaq   0x1(%rax,%rcx), %r10
+0x7ffff765af90: andnq  %rax, %rsi, %rax
+0x7ffff765af95: leaq   0x1000(%rax,%r9), %rcx
+0x7ffff765af9d: movq   %rdi, 0x40(%r12)
+0x7ffff765afa2: addq   %r12, %rcx
+0x7ffff765afa5: cmpb   $0x0, (%rcx)
+0x7ffff765afa8: jne    0x7ffff765b110            ; <+512>
+0x7ffff765afae: leal   -0x5(%r8), %edi
+0x7ffff765afb2: movl   $0x1, %esi
+0x7ffff765afb7: movb   $0x1, (%rcx)
+0x7ffff765afba: shlxq  %rdi, %rsi, %rsi
+0x7ffff765afbf: shlq   $0xe, %rax
+0x7ffff765afc3: addq   %rsi, %rax
+0x7ffff765afc6: movl   $0x8, %esi
+0x7ffff765afcb: shlxq  %r8, %rsi, %rsi
+0x7ffff765afd0: leaq   0x1000(%rax,%rsi), %rdi
+0x7ffff765afd8: addq   %r12, %rdi
+0x7ffff765afdb: leaq   (%rdi,%rbx), %r12
+0x7ffff765afdf: movq   %rbp, 0x18(%rdi)
+0x7ffff765afe3: movq   %rcx, 0x3ff8(%rdi)
+0x7ffff765afea: movq   %rdi, %rax
+0x7ffff765afed: testb  $0x7, %r12b
+0x7ffff765aff1: jne    0x7ffff765b1a0            ; <+656>
+0x7ffff765aff7: cmpq   $0x7fff7fff, %rdi         ; imm = 0x7FFF7FFF 
+0x7ffff765affe: ja     0x7ffff765b040            ; <+304>
+0x7ffff765b000: movq   %rax, -0x18(%rbp)
+0x7ffff765b004: movq   %rbx, %rsi
+0x7ffff765b007: xorl   %edx, %edx
+0x7ffff765b009: addr32 callq	0x7ffff778f110      ; ___lldb_unnamed_symbol_18f110
+0x7ffff765b00f: movl   $0x4000, %esi             ; imm = 0x4000 
+0x7ffff765b014: movq   %r12, %rdi
+0x7ffff765b017: movl   $0xf3, %edx
+0x7ffff765b01c: subq   %rbx, %rsi
+0x7ffff765b01f: addr32 callq	0x7ffff778f110      ; ___lldb_unnamed_symbol_18f110
+0x7ffff765b025: movq   -0x18(%rbp), %rax
+0x7ffff765b029: addq   $0x10, %rsp
+0x7ffff765b02d: popq   %rbx
+0x7ffff765b02e: popq   %r12
+0x7ffff765b030: popq   %rbp
+0x7ffff765b031: retq   
+0x7ffff765b032: nopl   (%rax)
+0x7ffff765b035: nopw   %cs:(%rax,%rax)
+0x7ffff765b040: leaq   0x2111e1(%rip), %rdx
+0x7ffff765b047: movq   (%rdx), %rcx
+0x7ffff765b04a: testq  %rcx, %rcx
+0x7ffff765b04d: je     0x7ffff765b058            ; <+328>
+0x7ffff765b04f: cmpq   %rcx, %rdi
+0x7ffff765b052: jae    0x7ffff765b140            ; <+560>
+0x7ffff765b058: leaq   0x2111d1(%rip), %rdx
+0x7ffff765b05f: movq   (%rdx), %rsi
+0x7ffff765b062: movq   %rsi, %rdx
+0x7ffff765b065: shrq   $0x3, %rdx
+0x7ffff765b069: addq   $0x7fff8001, %rdx         ; imm = 0x7FFF8001 
+0x7ffff765b070: cmpq   %rdx, %rdi
+0x7ffff765b073: jb     0x7ffff765b07a            ; <+362>
+0x7ffff765b075: cmpq   %rsi, %rdi
+0x7ffff765b078: jbe    0x7ffff765b000            ; <+240>
+0x7ffff765b07a: leaq   0x20d89f(%rip), %rsi
+0x7ffff765b081: cmpb   $0x0, 0x4e(%rsi)
+0x7ffff765b085: jne    0x7ffff765b0f0            ; <+480>
+0x7ffff765b087: testq  %rcx, %rcx
+0x7ffff765b08a: je     0x7ffff765b1c0            ; <+688>
+0x7ffff765b090: movq   %rcx, %rsi
+0x7ffff765b093: shrq   $0x3, %rsi
+0x7ffff765b097: addq   $0x7fff7fff, %rsi         ; imm = 0x7FFF7FFF 
+0x7ffff765b09e: cmpq   %rdi, %rsi
+0x7ffff765b0a1: jae    0x7ffff765b200            ; <+752>
+0x7ffff765b0a7: leaq   0x211172(%rip), %rsi
+0x7ffff765b0ae: movq   (%rsi), %rsi
+0x7ffff765b0b1: movq   %rsi, %r8
+0x7ffff765b0b4: shrq   $0x3, %r8
+0x7ffff765b0b8: addq   $0x7fff8001, %r8          ; imm = 0x7FFF8001 
+0x7ffff765b0bf: cmpq   %r8, %rdi
+0x7ffff765b0c2: jb     0x7ffff765b0d0            ; <+448>
+0x7ffff765b0c4: decq   %rcx
+0x7ffff765b0c7: cmpq   %rdi, %rcx
+0x7ffff765b0ca: jae    0x7ffff765b000            ; <+240>
+0x7ffff765b0d0: incq   %rsi
+0x7ffff765b0d3: cmpq   %rsi, %rdi
+0x7ffff765b0d6: jb     0x7ffff765b0f0            ; <+480>
+0x7ffff765b0d8: shrq   $0x3, %rdx
+0x7ffff765b0dc: addq   $0x7fff7fff, %rdx         ; imm = 0x7FFF7FFF 
+0x7ffff765b0e3: cmpq   %rdi, %rdx
+0x7ffff765b0e6: jae    0x7ffff765b000            ; <+240>
+0x7ffff765b0ec: nopl   (%rax)
+0x7ffff765b0f0: xorl   %r8d, %r8d
+0x7ffff765b0f3: xorl   %ecx, %ecx
+0x7ffff765b0f5: leaq   0x1b31fa(%rip), %rdx
+0x7ffff765b0fc: movl   $0x182, %esi              ; imm = 0x182 
+0x7ffff765b101: leaq   0x1ba050(%rip), %rdi
+0x7ffff765b108: addr32 callq	0x7ffff77d2550      ; ___lldb_unnamed_symbol_1d2550
+0x7ffff765b10e: nop    
+0x7ffff765b110: cmpq   %r10, %rdi
+0x7ffff765b113: je     0x7ffff765b190            ; <+640>
+0x7ffff765b115: movq   %rdi, %rax
+0x7ffff765b118: incq   %rdi
+0x7ffff765b11b: jmp    0x7ffff765af90            ; <+128>
+0x7ffff765b120: movq   %rbp, %rsi
+0x7ffff765b123: movq   %r12, %rdi
+0x7ffff765b126: movq   %r8, -0x18(%rbp)
+0x7ffff765b12a: callq  0x7ffff76569f0            ; ___lldb_unnamed_symbol_569f0
+0x7ffff765b12f: movq   -0x18(%rbp), %r8
+0x7ffff765b133: jmp    0x7ffff765af50            ; <+64>
+0x7ffff765b138: nopl   (%rax,%rax)
+0x7ffff765b140: leaq   0x2110d9(%rip), %rdx
+0x7ffff765b147: cmpq   %rdi, (%rdx)
+0x7ffff765b14a: jae    0x7ffff765b000            ; <+240>
+0x7ffff765b150: jmp    0x7ffff765b058            ; <+328>
+0x7ffff765b155: nopw   %cs:(%rax,%rax)
+0x7ffff765b160: movq   %rax, %rcx
+0x7ffff765b163: movq   0x1fc8ae(%rip), %rax
+0x7ffff765b16a: movl   (%rax), %eax
+0x7ffff765b16c: testl  %eax, %eax
+0x7ffff765b16e: je     0x7ffff765b190            ; <+640>
+0x7ffff765b170: movq   %rcx, -0x18(%rbp)
+0x7ffff765b174: addr32 callq	0x7ffff77a1860      ; ___lldb_unnamed_symbol_1a1860
+0x7ffff765b17a: movq   -0x18(%rbp), %rcx
+0x7ffff765b17e: testq  %rax, %rax
+0x7ffff765b181: je     0x7ffff765b190            ; <+640>
+0x7ffff765b183: cmpb   $0x0, 0x28(%rax)
+0x7ffff765b187: je     0x7ffff765b1e0            ; <+720>
+0x7ffff765b189: nopl   (%rax)
+0x7ffff765b190: xorl   %eax, %eax
+0x7ffff765b192: addq   $0x10, %rsp
+0x7ffff765b196: popq   %rbx
+0x7ffff765b197: popq   %r12
+0x7ffff765b199: popq   %rbp
+0x7ffff765b19a: retq   
+0x7ffff765b19b: nopl   (%rax,%rax)
+0x7ffff765b1a0: xorl   %r8d, %r8d
+0x7ffff765b1a3: xorl   %ecx, %ecx
+0x7ffff765b1a5: leaq   0x1bb774(%rip), %rdx
+0x7ffff765b1ac: movl   $0x1e, %esi
+0x7ffff765b1b1: leaq   0x1bb678(%rip), %rdi
+0x7ffff765b1b8: addr32 callq	0x7ffff77d2550      ; ___lldb_unnamed_symbol_1d2550
+0x7ffff765b1be: nop    
+0x7ffff765b1c0: movl   $0x8fff6fff, %ecx         ; imm = 0x8FFF6FFF 
+0x7ffff765b1c5: cmpq   %rdi, %rcx
+0x7ffff765b1c8: jae    0x7ffff765b0f0            ; <+480>
+0x7ffff765b1ce: jmp    0x7ffff765b0d8            ; <+456>
+0x7ffff765b1d3: nop    
+0x7ffff765b1d5: nopw   %cs:(%rax,%rax)
+0x7ffff765b1e0: movq   0x48(%rax), %r12
+0x7ffff765b1e4: cmpq   $0x1, %r12
+0x7ffff765b1e8: jbe    0x7ffff765b213            ; <+771>
+0x7ffff765b1ea: movq   %r12, (%rcx)
+0x7ffff765b1f1: jmp    0x7ffff765af3f            ; <+47>
+0x7ffff765b1f6: nopw   %cs:(%rax,%rax)
+0x7ffff765b200: movl   $0x8fff6fff, %edx         ; imm = 0x8FFF6FFF 
+0x7ffff765b205: cmpq   %rdi, %rdx
+0x7ffff765b208: jb     0x7ffff765b000            ; <+240>
+0x7ffff765b20e: jmp    0x7ffff765b0f0            ; <+480>
+0x7ffff765b213: movq   %rcx, -0x18(%rbp)
+0x7ffff765b217: movq   %rax, %rdi
+0x7ffff765b21a: addr32 callq	0x7ffff779f9d0      ; ___lldb_unnamed_symbol_19f9d0
+0x7ffff765b220: movq   -0x18(%rbp), %rcx
+0x7ffff765b224: testq  %rax, %rax
+0x7ffff765b227: movq   %rax, %r12
+0x7ffff765b22a: jne    0x7ffff765b1ea            ; <+730>
+0x7ffff765b22c: xorl   %eax, %eax
+0x7ffff765b22e: jmp    0x7ffff765b192            ; <+642>
+

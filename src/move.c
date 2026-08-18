@@ -2,7 +2,23 @@
 #include "helpers.h"
 #include "position.h"
 #include <stdint.h>
+#include <stdlib.h>
 
+int move_value(Move *m) {
+  if (m->promotionPiece != None) {
+    return 3;
+  }
+  if (m->pto != None) {
+    return 2;
+  }
+  if (m->pfrom != Pawn) {
+    return 1;
+  }
+  return 0;
+}
+int compare_moves(const void *a, const void *b) {
+  return move_value((Move *)b) - move_value((Move *)a); // descending
+}
 MoveArr get_moves(Position *position) {
 
   MoveArr mArr;
@@ -18,11 +34,40 @@ MoveArr get_moves(Position *position) {
   slider_moves(&mArr, position, Rook);
   king_moves(&mArr, position, &aInfo);
 
-  // filter king moving into check
   for (int i = mArr.count - 1; i > -1; i--) {
     Move *m = &mArr.moves[i];
+    // filter king moving into check
     if (m->pfrom == King) {
       if (m->to & aInfo.fullAttackMask) {
+        mArr.moves[i] = mArr.moves[mArr.count - 1];
+        mArr.count--;
+      }
+    }
+    // filter enPassant capture creating revealed check - absurd edge case
+    if (m->to == position->enPassantTile && m->pfrom == Pawn) {
+      uint64_t raycasterAttacks = 0;
+      uint64_t king = position->whitesMove ? position->wking : position->bking;
+      uint64_t enemyPawn = position->whitesMove ? position->enPassantTile >> 8 : position->enPassantTile << 8;
+      uint64_t allPieces = white_piece_mask(position) | black_piece_mask(position);
+      allPieces ^= m->from;
+      allPieces ^= enemyPawn;
+      allPieces |= m->to;
+      uint64_t bishops = position->whitesMove ? position->bbishops : position->wbishops;
+      uint64_t rooks = position->whitesMove ? position->brooks : position->wrooks;
+      uint64_t queens = position->whitesMove ? position->bqueens : position->wqueens;
+      while (bishops) {
+        uint64_t b = pop_lsb(&bishops);
+        raycasterAttacks |= slider_attack_mask(b, allPieces, BISHOP_ATTACK_OFFSETS, 4);
+      }
+      while (rooks) {
+        uint64_t r = pop_lsb(&rooks);
+        raycasterAttacks |= slider_attack_mask(r, allPieces, ROOK_ATTACK_OFFSETS, 4);
+      }
+      while (queens) {
+        uint64_t q = pop_lsb(&queens);
+        raycasterAttacks |= slider_attack_mask(q, allPieces, QUEEN_ATTACK_OFFSETS, 8);
+      }
+      if (raycasterAttacks & king) {
         mArr.moves[i] = mArr.moves[mArr.count - 1];
         mArr.count--;
       }
@@ -37,7 +82,8 @@ MoveArr get_moves(Position *position) {
         mArr.count--;
       }
     }
-  } else if (aInfo.check) {
+  }
+  if (aInfo.check) {
     // if in check with a slider threat
     if (aInfo.checkMask) {
       for (int i = mArr.count - 1; i > -1; i--) {
@@ -46,24 +92,27 @@ MoveArr get_moves(Position *position) {
           if (!(m->to & aInfo.checkMask) && !(m->to & aInfo.checkingPiecePos)) {
             uint64_t *k = find_piece_mask(m->from, position);
             uint64_t king = *k;
-
             king ^= m->from;
             king |= m->to;
-            Piece type = find_piece_type(aInfo.checkingPiecePos, position);
-            uint64_t allPieces = black_piece_mask(position) | white_piece_mask(position);
-            allPieces ^= position->whitesMove ? position->wking : position->bking;
-            allPieces |= king;
-            uint64_t newAttackMask = 0;
-            if (type == Bishop) {
-              newAttackMask = slider_attack_mask(&aInfo.checkingPiecePos, allPieces, BISHOP_ATTACK_OFFSETS, 4);
-            } else if (type == Queen) {
-              newAttackMask = slider_attack_mask(&aInfo.checkingPiecePos, allPieces, QUEEN_ATTACK_OFFSETS, 8);
-            } else if (type == Rook) {
-              newAttackMask = slider_attack_mask(&aInfo.checkingPiecePos, allPieces, ROOK_ATTACK_OFFSETS, 4);
-            }
-            if (newAttackMask & king) {
-              mArr.moves[i] = mArr.moves[mArr.count - 1];
-              mArr.count--;
+            uint64_t checkingPieces = aInfo.checkingPiecePos;
+            while (checkingPieces) {
+              uint64_t p = pop_lsb(&checkingPieces);
+              Piece type = find_piece_type(p, position);
+              uint64_t allPieces = black_piece_mask(position) | white_piece_mask(position);
+              allPieces ^= position->whitesMove ? position->wking : position->bking;
+              allPieces |= king;
+              uint64_t newAttackMask = 0;
+              if (type == Bishop) {
+                newAttackMask = slider_attack_mask(p, allPieces, BISHOP_ATTACK_OFFSETS, 4);
+              } else if (type == Queen) {
+                newAttackMask = slider_attack_mask(p, allPieces, QUEEN_ATTACK_OFFSETS, 8);
+              } else if (type == Rook) {
+                newAttackMask = slider_attack_mask(p, allPieces, ROOK_ATTACK_OFFSETS, 4);
+              }
+              if (newAttackMask & king) {
+                mArr.moves[i] = mArr.moves[mArr.count - 1];
+                mArr.count--;
+              }
             }
             king ^= m->to;
             king |= m->from;
@@ -81,6 +130,13 @@ MoveArr get_moves(Position *position) {
         if (m->pfrom == King)
           continue;
         if (m->to != aInfo.checkingPiecePos) {
+          // check for enPassant attack on checking pawn
+          if (m->to == position->enPassantTile && m->pfrom == Pawn) {
+            Piece type = find_piece_type(aInfo.checkingPiecePos, position);
+            if (type == Pawn) {
+              continue;
+            }
+          }
           mArr.moves[i] = mArr.moves[mArr.count - 1];
           mArr.count--;
         }
@@ -107,6 +163,7 @@ MoveArr get_moves(Position *position) {
       }
     }
   }
+  sort_moves(&mArr);
 
   return mArr;
 }
@@ -139,7 +196,7 @@ AttackerInfo get_attacker_info(Position *position) {
       uint64_t attack = bpawn_attack_mask(&p);
       aInfo.fullAttackMask |= attack;
       if (attack & myKing) {
-        aInfo.checkingPiecePos = p;
+        aInfo.checkingPiecePos |= p;
         aInfo.check = true;
       }
     }
@@ -156,7 +213,7 @@ AttackerInfo get_attacker_info(Position *position) {
       uint64_t attack = wpawn_attack_mask(&p);
       aInfo.fullAttackMask |= attack;
       if (attack & myKing) {
-        aInfo.checkingPiecePos = p;
+        aInfo.checkingPiecePos |= p;
         aInfo.check = true;
       }
     }
@@ -167,7 +224,7 @@ AttackerInfo get_attacker_info(Position *position) {
     uint64_t attack = knight_attack_mask(&k);
     aInfo.fullAttackMask |= attack;
     if (attack & myKing) {
-      aInfo.checkingPiecePos = k;
+      aInfo.checkingPiecePos |= k;
       aInfo.check = true;
     }
   }
@@ -184,8 +241,8 @@ AttackerInfo get_attacker_info(Position *position) {
       if (bas.attacks[i] & myKing) {
         if (aInfo.check)
           aInfo.multicheck = true;
-        aInfo.checkMask = bas.attacks[i];
-        aInfo.checkingPiecePos = b;
+        aInfo.checkMask |= bas.attacks[i];
+        aInfo.checkingPiecePos |= b;
         aInfo.check = true;
       }
     }
@@ -199,8 +256,8 @@ AttackerInfo get_attacker_info(Position *position) {
       if (ras.attacks[i] & myKing) {
         if (aInfo.check)
           aInfo.multicheck = true;
-        aInfo.checkMask = ras.attacks[i];
-        aInfo.checkingPiecePos = r;
+        aInfo.checkMask |= ras.attacks[i];
+        aInfo.checkingPiecePos |= r;
         aInfo.check = true;
       }
     }
@@ -215,8 +272,8 @@ AttackerInfo get_attacker_info(Position *position) {
         if (aInfo.check)
           aInfo.multicheck = true;
         aInfo.check = true;
-        aInfo.checkMask = qas.attacks[i];
-        aInfo.checkingPiecePos = q;
+        aInfo.checkMask |= qas.attacks[i];
+        aInfo.checkingPiecePos |= q;
       }
     }
   }
@@ -286,3 +343,4 @@ RevealAttackSegments get_reveal_check_lines(Position *position) {
   }
   return result;
 }
+void sort_moves(MoveArr *mArr) { qsort(mArr->moves, mArr->count, sizeof(Move), compare_moves); }

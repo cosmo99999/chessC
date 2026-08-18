@@ -30,9 +30,9 @@
 
 #ifndef SLIDER_OFFSETS
 #define SLIDER_OFFSETS
-#define QUEEN_ATTACK_OFFSETS (int[8]){-1, 1, 8, -8, 7, -7, 9, -9}
-#define ROOK_ATTACK_OFFSETS (int[4]){-1, 1, 8, -8}
-#define BISHOP_ATTACK_OFFSETS (int[4]){7, -7, 9, -9}
+static int QUEEN_ATTACK_OFFSETS[8] = {-1, 1, 8, -8, 7, -7, 9, -9};
+static int ROOK_ATTACK_OFFSETS[4] = {-1, 1, 8, -8};
+static int BISHOP_ATTACK_OFFSETS[4] = {7, -7, 9, -9};
 #endif
 
 typedef struct {
@@ -63,6 +63,8 @@ typedef struct {
   uint64_t fullAttackMask;
 } AttackerInfo;
 
+void sort_moves(MoveArr *mArr);
+
 MoveArr get_moves(Position *position);
 // illegal move filtering
 AttackerInfo get_attacker_info(Position *position);
@@ -81,7 +83,7 @@ uint64_t knight_attack_mask(uint64_t *knight);
 
 // sliding pieces
 void slider_moves(MoveArr *moves, Position *position, Piece piece);
-uint64_t slider_attack_mask(uint64_t *piece, uint64_t allpieces, int offsets[], int length);
+uint64_t slider_attack_mask(uint64_t piece, uint64_t allpieces, int offsets[], int length);
 AttackSegments slider_attack_mask_segmented(uint64_t *piece, uint64_t allpieces, int offsets[], int length);
 AttackSegments slider_reveal_check_mask_segmented(uint64_t *piece, int offsets[], int length, PositionContext context);
 

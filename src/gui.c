@@ -2,7 +2,9 @@
 #include "engine.h"
 #include "helpers.h"
 #include "position.h"
+#include "uci.h"
 #include <raylib.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -101,7 +103,8 @@ DrawContext get_init_context() {
   d.firstSelection = -1;
   d.secondSelection = -1;
   d.gameState = WhiteMove;
-  d.promotionChoice = None;
+  d.promotionMade = false;
+  d.firstmove = true;
   return d;
 }
 void mouse_check(DrawContext *context) {
@@ -118,14 +121,48 @@ void mouse_check(DrawContext *context) {
     if (IsMouseButtonPressed(0)) {
       int promotionMenuStartY = BOARD_Y;
       if (mousePos.x > boardEndX && mousePos.x < boardEndX + 100) {
-        if (mousePos.y > promotionMenuStartY && mousePos.y < promotionMenuStartY + 100)
-          context->promotionChoice = Queen;
-        else if (mousePos.y > promotionMenuStartY + 100 && mousePos.y < promotionMenuStartY + 200)
-          context->promotionChoice = Bishop;
-        else if (mousePos.y > promotionMenuStartY + 200 && mousePos.y < promotionMenuStartY + 300)
-          context->promotionChoice = Rook;
-        else if (mousePos.y > promotionMenuStartY + 300 && mousePos.y < promotionMenuStartY + 400)
-          context->promotionChoice = Knight;
+        if (mousePos.y > promotionMenuStartY && mousePos.y < promotionMenuStartY + 100) {
+          for (int i = 0; i < context->mArr->count; i++) {
+            Move *m = &context->mArr->moves[i];
+            if (m->to == context->promotionChoice->to) {
+              if (m->promotionPiece == Queen) {
+                context->promotionChoice = m;
+                context->promotionMade = true;
+              }
+            }
+          }
+        } else if (mousePos.y > promotionMenuStartY + 100 && mousePos.y < promotionMenuStartY + 200) {
+          for (int i = 0; i < context->mArr->count; i++) {
+            Move *m = &context->mArr->moves[i];
+            if (m->to == context->promotionChoice->to) {
+              if (m->promotionPiece == Bishop) {
+                context->promotionChoice = m;
+                context->promotionMade = true;
+              }
+            }
+          }
+        } else if (mousePos.y > promotionMenuStartY + 200 && mousePos.y < promotionMenuStartY + 300) {
+          for (int i = 0; i < context->mArr->count; i++) {
+            Move *m = &context->mArr->moves[i];
+            if (m->to == context->promotionChoice->to) {
+              if (m->promotionPiece == Rook) {
+                context->promotionChoice = m;
+                context->promotionMade = true;
+              }
+            }
+          }
+
+        } else if (mousePos.y > promotionMenuStartY + 300 && mousePos.y < promotionMenuStartY + 400) {
+          for (int i = 0; i < context->mArr->count; i++) {
+            Move *m = &context->mArr->moves[i];
+            if (m->to == context->promotionChoice->to) {
+              if (m->promotionPiece == Knight) {
+                context->promotionChoice = m;
+                context->promotionMade = true;
+              }
+            }
+          }
+        }
       }
     }
   } else {
@@ -165,10 +202,16 @@ void DrawPiece(uint64_t piece, DrawContext context, Texture2D *texture) {
 
 void draw_gui(Position *position, MoveArr *moves, DrawContext *context) {
   int counter = 0;
-  char counterStr[10];
+  char sqStr[15];
   MoveArr currentPieceMoves;
   currentPieceMoves.count = 0;
 
+  char depthstring[256] = "Depth: ";
+  char depth[20];
+  snprintf(depth, sizeof(depth), "%d", context->depth);
+  strncat(depthstring, depth, sizeof(depthstring) - strlen(depthstring) - 1);
+  DrawText("RozChess", BOARD_WIDTH / 2, 20, 40, RED);
+  DrawText(depthstring, BOARD_WIDTH / 2, 60, 25, RED);
   if (context->firstSelection != -1) {
     for (int i = 0; i < moves->count; i++) {
       Move *m = &moves->moves[i];
@@ -196,7 +239,7 @@ void draw_gui(Position *position, MoveArr *moves, DrawContext *context) {
         else
           c = BROWN;
       }
-      snprintf(counterStr, sizeof(counterStr), "%d", counter);
+      square_to_str(counter, sqStr);
       DrawRectangle(drawPos[0], drawPos[1], 100, 100, c);
 
       for (int i = 0; i < currentPieceMoves.count; i++) {
@@ -206,9 +249,25 @@ void draw_gui(Position *position, MoveArr *moves, DrawContext *context) {
           DrawRectangle(drawPos[0], drawPos[1], 100, 100, GREEN);
         }
       }
-      DrawText(counterStr, drawPos[0] + 10, drawPos[1] + 10, 10, RED);
+      // DrawText(sqStr, drawPos[0] + 10, drawPos[1] + 10, 10, RED);
       counter++;
     }
+  }
+  if (!context->firstmove) {
+    Vector2 fromTile;
+    Vector2 toTile;
+    int fromInt = lsb_get_int(&context->lastMove.from);
+    int toInt = lsb_get_int(&context->lastMove.to);
+    int fromRow = fromInt % 8;
+    int fromCol = fromInt / 8;
+    int toRow = toInt % 8;
+    int toCol = toInt / 8;
+    fromTile.x = (100 * fromRow + 50 + BOARD_X);
+    fromTile.y = 800 - (100 * fromCol + 50 - BOARD_Y);
+    toTile.x = (100 * toRow + 50 + BOARD_X);
+    toTile.y = 800 - (100 * toCol + 50 - BOARD_Y);
+
+    DrawLineEx(fromTile, toTile, 5, RED);
   }
   uint64_t allOccupancy = white_piece_mask(position) | black_piece_mask(position);
 
@@ -219,26 +278,35 @@ void draw_gui(Position *position, MoveArr *moves, DrawContext *context) {
     Texture2D *texture = get_texture(type, colour, context->textures);
     DrawPiece(piece, *context, texture);
   }
-
+  float promotionMenuStartY = BOARD_Y;
+  float promotionMenuStartX = BOARD_WIDTH + BOARD_X;
+  if (context->gameState == Promoting) {
+    DrawTexture(context->textures->blackQueen, promotionMenuStartX, promotionMenuStartY, WHITE);
+    DrawTexture(context->textures->blackBishop, promotionMenuStartX, promotionMenuStartY + 100, WHITE);
+    DrawTexture(context->textures->blackRook, promotionMenuStartX, promotionMenuStartY + 200, WHITE);
+    DrawTexture(context->textures->blackKnight, promotionMenuStartX, promotionMenuStartY + 300, WHITE);
+  }
   int currentEval = evaluate(position);
-  char eval[100];
-  snprintf(eval, sizeof(eval), "%d", currentEval);
-  DrawText(eval, BOARD_X + BOARD_WIDTH + 50, BOARD_Y + 100, 10, RED);
+  char eval[256] = "Current Evaluation: ";
+  char evalNum[256];
+  snprintf(evalNum, sizeof(evalNum), "%d", currentEval);
+  strncat(eval, evalNum, sizeof(eval) - strlen(eval) - 1);
+  DrawText(eval, BOARD_WIDTH / 2, BOARD_Y + BOARD_HEIGHT + 20, 20, RED);
 
   if (context->gameState == WhiteMove) {
-    DrawText("WhiteMove", (BOARD_X + BOARD_WIDTH) / 2, BOARD_Y + BOARD_HEIGHT + 50, 10, RED);
+    DrawText("WhiteMove", (BOARD_WIDTH) / 2, BOARD_Y + BOARD_HEIGHT + 50, 30, RED);
   }
 
   if (context->gameState == BlackMove) {
-    DrawText("BlackMove", (BOARD_X + BOARD_WIDTH) / 2, BOARD_Y + BOARD_HEIGHT + 50, 10, RED);
+    DrawText("BlackMove", (BOARD_WIDTH) / 2, BOARD_Y + BOARD_HEIGHT + 50, 30, RED);
   }
   if (context->gameState == WhiteWon) {
-    DrawText("WhiteWon", (BOARD_X + BOARD_WIDTH) / 2, BOARD_Y + BOARD_HEIGHT + 50, 10, RED);
+    DrawText("WhiteWon", (BOARD_WIDTH) / 2, BOARD_Y + BOARD_HEIGHT + 50, 30, RED);
   }
   if (context->gameState == BlackWon) {
-    DrawText("BlackWon", (BOARD_X + BOARD_WIDTH) / 2, BOARD_Y + BOARD_HEIGHT + 50, 10, RED);
+    DrawText("BlackWon", (BOARD_WIDTH) / 2, BOARD_Y + BOARD_HEIGHT + 50, 30, RED);
   }
   if (context->gameState == StaleMate) {
-    DrawText("StaleMate", (BOARD_X + BOARD_WIDTH) / 2, BOARD_Y + BOARD_HEIGHT + 50, 10, RED);
+    DrawText("StaleMate", (BOARD_WIDTH) / 2, BOARD_Y + BOARD_HEIGHT + 50, 30, RED);
   }
 }

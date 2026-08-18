@@ -99,8 +99,8 @@ static inline void print_move_uci(uint64_t from, uint64_t to, Piece promotionPie
 
   printf("%s", buf);
 }
-static inline void read_input(char *buf) {
-  if (fgets(buf, 1000, stdin) == NULL) {
+static inline void read_input(char *buf, size_t bufSize) {
+  if (fgets(buf, bufSize, stdin) == NULL) {
     buf[0] = '\0';
     return;
   }
@@ -143,4 +143,120 @@ static inline ParsedMove parse_uci_move(const char *str) {
   }
 
   return pm;
+}
+static inline Position position_from_fen(const char *fen) {
+  Position result;
+  memset(&result, 0, sizeof(Position));
+
+  char boardString[100] = {0};
+  char turn[8] = {0};
+  char castling[10] = {0};
+  char passant[10] = {0};
+  char halfmoves[16] = "0";
+  char fullmoves[16] = "1";
+
+  // sscanf handles the whitespace-splitting that getline(..., ' ') did
+  sscanf(fen, "%99s %7s %9s %9s %15s %15s", boardString, turn, castling, passant, halfmoves, fullmoves);
+
+  int x = 0;
+  int y = 7;
+  for (int i = 0; boardString[i] != '\0'; i++) {
+    char c = boardString[i];
+    int pos = x + y * 8;
+
+    if (c == '/') {
+      x = 0;
+      --y;
+    } else if (c >= '0' && c <= '9') {
+      x += c - '0';
+    } else {
+      switch (c) {
+      case 'P':
+        result.wpawns |= 1ULL << pos;
+        ++x;
+        break;
+      case 'N':
+        result.wknights |= 1ULL << pos;
+        ++x;
+        break;
+      case 'B':
+        result.wbishops |= 1ULL << pos;
+        ++x;
+        break;
+      case 'R':
+        result.wrooks |= 1ULL << pos;
+        ++x;
+        break;
+      case 'Q':
+        result.wqueens |= 1ULL << pos;
+        ++x;
+        break;
+      case 'K':
+        result.wking |= 1ULL << pos;
+        ++x;
+        break;
+      case 'p':
+        result.bpawns |= 1ULL << pos;
+        ++x;
+        break;
+      case 'n':
+        result.bknights |= 1ULL << pos;
+        ++x;
+        break;
+      case 'b':
+        result.bbishops |= 1ULL << pos;
+        ++x;
+        break;
+      case 'r':
+        result.brooks |= 1ULL << pos;
+        ++x;
+        break;
+      case 'q':
+        result.bqueens |= 1ULL << pos;
+        ++x;
+        break;
+      case 'k':
+        result.bking |= 1ULL << pos;
+        ++x;
+        break;
+      default:
+        break;
+      }
+    }
+  }
+
+  result.whitesMove = (turn[0] != 'b');
+
+  result.castlingRights = 0;
+  for (int i = 0; castling[i] != '\0'; i++) {
+    switch (castling[i]) {
+    case 'K':
+      result.castlingRights |= 1;
+      break;
+    case 'Q':
+      result.castlingRights |= 2;
+      break;
+    case 'k':
+      result.castlingRights |= 4;
+      break;
+    case 'q':
+      result.castlingRights |= 8;
+      break;
+    default:
+      break;
+    }
+  }
+
+  result.enPassantTile = 0;
+  if (passant[0] != '-' && passant[0] != '\0' && passant[1] != '\0') {
+    int passant_x = passant[0] - 'a';
+    int passant_y = passant[1] - '1';
+    int passantTile = passant_x + passant_y * 8;
+    result.enPassantTile = 1ULL << passantTile;
+  }
+
+  result.halfMoveClock = atoi(halfmoves);
+  result.fullMoveClock = atoi(fullmoves);
+
+  return result;
 }

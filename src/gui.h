@@ -40,8 +40,12 @@ typedef struct {
   Textures *textures;
   Vector2 mousePosition;
   GameState gameState;
-  Piece promotionChoice;
+  Move *promotionChoice;
+  bool promotionMade;
   MoveArr *mArr;
+  Move lastMove;
+  bool firstmove;
+  int depth;
 } DrawContext;
 
 DrawContext get_init_context();
