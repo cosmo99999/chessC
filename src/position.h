@@ -48,9 +48,9 @@ typedef struct {
 } HashHistory;
 
 typedef struct {
-  int pieceKeys[2][6][64];
-  int castlingKeys[16];
-  int enPassantKeys[8];
+  uint64_t pieceKeys[2][6][64];
+  uint64_t castlingKeys[16];
+  uint64_t enPassantKeys[8];
   uint64_t sideToMoveKey;
 } Zobrist;
 
